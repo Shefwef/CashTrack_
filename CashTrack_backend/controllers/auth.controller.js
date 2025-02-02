@@ -4,42 +4,38 @@ import generateTokenAndSetCookie from "../utils/generateToken.js";
 
 export const signup = async (req, res) => {
   try {
-    const { fullName, username, password, confirmPassword, gender } = req.body;
+    const { fullName, username, password, confirmPassword } = req.body;
 
     if (password !== confirmPassword) {
       return res.status(400).json({ error: "Passwords don't match!" });
     }
 
-    const userExists = await User.findOne({ username });
+    const existingUser = await User.findOne({ username });
 
-    if (userExists) {
+    if (existingUser) {
       return res.status(400).json({ error: "Username already exists!" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const defaultProfilePic = `https://avatar.iran.liara.run/public/default?username=${username}`;
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
     const newUser = new User({
       fullName,
       username,
       password: hashedPassword,
-      gender,
-      profilePic: defaultProfilePic,
     });
 
+    generateTokenAndSetCookie(newUser._id, res);
     await newUser.save();
 
-    generateTokenAndSetCookie(newUser._id, res);
     res.status(201).json({
       _id: newUser._id,
       fullName: newUser.fullName,
       username: newUser.username,
-      profilePic: newUser.profilePic,
     });
   } catch (error) {
-    console.error("Signup error:", error.message);
-    res.status(500).json({ error: "Internal server error!" });
+    console.error("Error in signup controller:", error.message);
+    res.status(500).json({ error: "Internal Server Error!" });
   }
 };
 
@@ -63,7 +59,6 @@ export const login = async (req, res) => {
       _id: user._id,
       fullName: user.fullName,
       username: user.username,
-      profilePic: user.profilePic,
     });
   } catch (error) {
     console.error("Login error:", error.message);
