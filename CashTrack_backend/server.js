@@ -12,10 +12,11 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
-app.use(express.json());
+// Middleware (Make sure express.json() does NOT interfere with multer)
 app.use(cors({ origin: ["http://localhost:5000"], credentials: true }));
 app.use(cookieParser());
+app.use(express.urlencoded({ extended: true })); // Support form submissions
+app.use(express.json()); // JSON parsing AFTER file upload handling
 
 // Connect to MongoDB
 connectToMongoDB();
