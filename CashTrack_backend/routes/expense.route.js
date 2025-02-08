@@ -1,14 +1,21 @@
 import express from "express";
-import { upload } from "../config/multerConfig.js";
-import { createExpense } from "../controllers/expenseController.js";
-import protectRoute from "../middleware/protectRoute.js";
+import { upload } from "../config/multer.config.js"; // Import multer configuration
+import authenticate from "../middleware/auth.middleware.js"; // Authentication middleware
+import {
+  createExpense,
+  getExpenses,
+  updateExpense,
+  deleteExpense,
+  viewMedia,
+} from "../controllers/expense.controller.js";
 
 const router = express.Router();
 
-// Protect all expense routes
-router.use(protectRoute);
-
-router.post("/", upload.array("media"), createExpense);
-// Add other CRUD operations here (GET, PUT, DELETE)
+// CRUD routes with file uploads
+router.post("/", authenticate, upload.single("mediaFile"), createExpense); // Create an expense with media
+router.get("/", authenticate, getExpenses); // Get all expenses with filters
+router.put("/:id", authenticate, upload.single("mediaFile"), updateExpense); // Update an expense with media
+router.delete("/:id", authenticate, deleteExpense); // Delete an expense
+router.get("/media/:filePath", viewMedia); // View media file
 
 export default router;
