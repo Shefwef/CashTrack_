@@ -36,25 +36,27 @@ const upload = multer({
 // Create a new expense
 export const createExpense = async (req, res) => {
   try {
-    upload(req, res, async (err) => {
-      if (err) {
-        return res.status(400).json({ error: err.message });
-      }
+    console.log("Request Body:", req.body);
+    console.log("Uploaded File:", req.file);
 
-      const { date, category, amount, description, paymentMethod } = req.body;
-      const newExpense = new Expense({
-        userId: req.userID, // Assuming the userID comes from JWT authentication
-        date,
-        category,
-        amount,
-        description,
-        paymentMethod,
-        mediaFile: req.file ? req.file.path : null,
-      });
+    const { date, category, amount, description, paymentMethod } = req.body;
 
-      await newExpense.save();
-      res.status(201).json(newExpense);
+    if (!date || !category || !amount || !paymentMethod) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
+
+    const newExpense = new Expense({
+      userId: req.userID,
+      date,
+      category,
+      amount,
+      description,
+      paymentMethod,
+      mediaFile: req.file ? req.file.path : null, // Store file path if uploaded
     });
+
+    await newExpense.save();
+    res.status(201).json(newExpense);
   } catch (error) {
     console.error("Error creating expense:", error.message);
     res.status(500).json({ error: "Internal Server Error" });

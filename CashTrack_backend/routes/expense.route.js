@@ -1,6 +1,6 @@
 import express from "express";
-import { upload } from "../config/multer.config.js"; // Import multer configuration
-import authenticate from "../middleware/auth.middleware.js"; // Authentication middleware
+import { upload } from "../config/multer.config.js";
+import authenticate from "../middleware/auth.middleware.js";
 import {
   createExpense,
   getExpenses,
