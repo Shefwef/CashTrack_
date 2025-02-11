@@ -95,6 +95,12 @@ export const updateExpense = async (req, res) => {
       const { id } = req.params;
       const { date, category, amount, description, paymentMethod } = req.body;
 
+      // Find the existing expense to check for an old media file
+      const existingExpense = await Expense.findById(id);
+      if (!existingExpense) {
+        return res.status(404).json({ error: "Expense not found!" });
+      }
+
       const updatedFields = {
         date,
         category,
@@ -103,8 +109,14 @@ export const updateExpense = async (req, res) => {
         paymentMethod,
       };
 
+      // If a new media file is uploaded, delete the old one first
       if (req.file) {
-        updatedFields.mediaFile = req.file.path;
+        if (existingExpense.mediaFile) {
+          fs.unlink(existingExpense.mediaFile, (err) => {
+            if (err) console.error("Error deleting old media file:", err);
+          });
+        }
+        updatedFields.mediaFile = req.file.path; // Save new file path
       }
 
       const updatedExpense = await Expense.findByIdAndUpdate(
@@ -112,9 +124,6 @@ export const updateExpense = async (req, res) => {
         updatedFields,
         { new: true }
       );
-      if (!updatedExpense) {
-        return res.status(404).json({ error: "Expense not found!" });
-      }
 
       res.status(200).json(updatedExpense);
     });
