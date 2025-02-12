@@ -88,14 +88,14 @@ export const getExpenses = async (req, res) => {
 export const updateExpense = async (req, res) => {
   try {
     upload(req, res, async (err) => {
-      if (err) {
+      if (err && err.code !== "LIMIT_UNEXPECTED_FILE") {
         return res.status(400).json({ error: err.message });
       }
 
       const { id } = req.params;
       const { date, category, amount, description, paymentMethod } = req.body;
 
-      // Find the existing expense to check for an old media file
+      // Fetch existing expense
       const existingExpense = await Expense.findById(id);
       if (!existingExpense) {
         return res.status(404).json({ error: "Expense not found!" });
@@ -109,22 +109,23 @@ export const updateExpense = async (req, res) => {
         paymentMethod,
       };
 
-      // If a new media file is uploaded, delete the old one first
+      // Only update mediaFile if a new file is uploaded
       if (req.file) {
+        // Delete the old media file if it exists
         if (existingExpense.mediaFile) {
           fs.unlink(existingExpense.mediaFile, (err) => {
             if (err) console.error("Error deleting old media file:", err);
           });
         }
-        updatedFields.mediaFile = req.file.path; // Save new file path
+        updatedFields.mediaFile = req.file.path;
       }
 
+      // Update the expense
       const updatedExpense = await Expense.findByIdAndUpdate(
         id,
         updatedFields,
         { new: true }
       );
-
       res.status(200).json(updatedExpense);
     });
   } catch (error) {
