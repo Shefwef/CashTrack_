@@ -2,6 +2,7 @@ import Expense from "../models/expense.model.js";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
+import { uploadSingle } from "../config/multer.config.js";
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -87,7 +88,7 @@ export const getExpenses = async (req, res) => {
 // Update an expense
 export const updateExpense = async (req, res) => {
   try {
-    upload(req, res, async (err) => {
+    uploadSingle(req, res, async (err) => {
       if (err && err.code !== "LIMIT_UNEXPECTED_FILE") {
         return res.status(400).json({ error: err.message });
       }
@@ -95,7 +96,7 @@ export const updateExpense = async (req, res) => {
       const { id } = req.params;
       const { date, category, amount, description, paymentMethod } = req.body;
 
-      // Fetch existing expense
+      // Find existing expense
       const existingExpense = await Expense.findById(id);
       if (!existingExpense) {
         return res.status(404).json({ error: "Expense not found!" });
@@ -109,9 +110,8 @@ export const updateExpense = async (req, res) => {
         paymentMethod,
       };
 
-      // Only update mediaFile if a new file is uploaded
+      // Handle media file update (if a file is provided)
       if (req.file) {
-        // Delete the old media file if it exists
         if (existingExpense.mediaFile) {
           fs.unlink(existingExpense.mediaFile, (err) => {
             if (err) console.error("Error deleting old media file:", err);
@@ -120,12 +120,13 @@ export const updateExpense = async (req, res) => {
         updatedFields.mediaFile = req.file.path;
       }
 
-      // Update the expense
+      // Update the expense in DB
       const updatedExpense = await Expense.findByIdAndUpdate(
         id,
         updatedFields,
         { new: true }
       );
+
       res.status(200).json(updatedExpense);
     });
   } catch (error) {
