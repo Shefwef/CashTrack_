@@ -139,18 +139,30 @@ export const updateExpense = async (req, res) => {
 export const deleteExpense = async (req, res) => {
   try {
     const { id } = req.params;
-    const expense = await Expense.findByIdAndDelete(id);
+
+    // Find the expense in DB
+    const expense = await Expense.findById(id);
     if (!expense) {
       return res.status(404).json({ error: "Expense not found!" });
     }
 
+    // If an associated media file exists, delete it
     if (expense.mediaFile) {
-      fs.unlinkSync(expense.mediaFile);
+      fs.unlink(expense.mediaFile, (err) => {
+        if (err) {
+          console.error("Error deleting media file:", err);
+        } else {
+          console.log("✅ Media file deleted successfully:", expense.mediaFile);
+        }
+      });
     }
+
+    // Delete expense from DB
+    await Expense.findByIdAndDelete(id);
 
     res.status(200).json({ message: "Expense deleted successfully!" });
   } catch (error) {
-    console.error("Error deleting expense:", error.message);
+    console.error("❌ Error deleting expense:", error.message);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
