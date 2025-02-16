@@ -223,6 +223,55 @@ export const deleteMedia = async (req, res) => {
   }
 };
 
+export const updateExpense = async (req, res) => {
+  try {
+    uploadSingle(req, res, async (err) => {
+      if (err && err.code !== "LIMIT_UNEXPECTED_FILE") {
+        return res.status(400).json({ error: err.message });
+      }
+
+      const { id } = req.params;
+      const { date, category, amount, description, paymentMethod } = req.body;
+
+      // Find existing expense
+      const existingExpense = await Expense.findById(id);
+      if (!existingExpense) {
+        return res.status(404).json({ error: "Expense not found!" });
+      }
+
+      const updatedFields = {
+        date,
+        category,
+        amount,
+        description,
+        paymentMethod,
+      };
+
+      // If a new media file is uploaded, delete the old one first
+      if (req.file) {
+        if (existingExpense.mediaFile) {
+          fs.unlink(existingExpense.mediaFile, (err) => {
+            if (err) console.error("Error deleting old media file:", err);
+          });
+        }
+        updatedFields.mediaFile = req.file.path;
+      }
+
+      // Update the expense in DB
+      const updatedExpense = await Expense.findByIdAndUpdate(
+        id,
+        updatedFields,
+        { new: true }
+      );
+
+      res.status(200).json(updatedExpense);
+    });
+  } catch (error) {
+    console.error("Error updating expense:", error.message);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 //
 // export const viewMedia = (req, res) => {
 //   const { filePath } = req.params;
