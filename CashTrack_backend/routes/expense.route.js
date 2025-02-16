@@ -8,6 +8,7 @@ import {
   deleteExpense,
   viewMedia,
   deleteMedia,
+  generateReport,
 } from "../controllers/expense.controller.js";
 
 const router = express.Router();
@@ -19,5 +20,6 @@ router.patch("/:id", authenticate, updateExpense); // Update expense + replace m
 router.delete("/:id", authenticate, deleteExpense); // Delete an expense
 router.get("/media/:filePath", viewMedia); // View media file
 router.delete("/media/:id", authenticate, deleteMedia); // Delete media file from an expense
+router.get("/report", authenticate, generateReport); // Generate a report
 
 export default router;
