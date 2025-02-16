@@ -1,9 +1,11 @@
 import Expense from "../models/expense.model.js";
+import PDFDocument from "pdfkit";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
 import { uploadSingle } from "../config/multer.config.js";
 import { fileURLToPath } from "url";
+import { createObjectCsvWriter } from "csv-writer";
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -34,6 +36,9 @@ const upload = multer({
     }
   },
 }).single("mediaFile");
+
+// Fix __dirname in ES Modules
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Create a new expense
 export const createExpense = async (req, res) => {
@@ -168,9 +173,6 @@ export const deleteExpense = async (req, res) => {
   }
 };
 
-// Fix __dirname in ES Modules
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
 // View media file
 export const viewMedia = async (req, res) => {
   try {
@@ -221,6 +223,106 @@ export const deleteMedia = async (req, res) => {
     console.error("Error deleting media file:", error.message);
     res.status(500).json({ error: "Internal Server Error" });
   }
+};
+
+export const generateReport = async (req, res) => {
+  try {
+    const { format, startDate, endDate, category } = req.query;
+
+    let filters = {};
+    if (startDate && endDate) {
+      filters.date = { $gte: new Date(startDate), $lte: new Date(endDate) };
+    }
+    if (category) filters.category = category;
+
+    const expenses = await Expense.find(filters).sort({ date: -1 });
+
+    if (!expenses.length) {
+      return res
+        .status(404)
+        .json({ error: "No expenses found for the given filters." });
+    }
+
+    if (format === "pdf") {
+      generatePDFReport(expenses, res);
+    } else if (format === "csv") {
+      generateCSVReport(expenses, res);
+    } else {
+      return res
+        .status(400)
+        .json({ error: "Invalid format! Use 'pdf' or 'csv'." });
+    }
+  } catch (error) {
+    console.error("Error generating report:", error.message);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// Function to generate a PDF report
+const generatePDFReport = (expenses, res) => {
+  const doc = new PDFDocument();
+  const filePath = path.join(__dirname, "../reports/expense_report.pdf");
+
+  // Ensure reports directory exists
+  if (!fs.existsSync(path.join(__dirname, "../reports"))) {
+    fs.mkdirSync(path.join(__dirname, "../reports"), { recursive: true });
+  }
+
+  doc.pipe(fs.createWriteStream(filePath));
+  doc.pipe(res);
+
+  doc.fontSize(16).text("Expense Report", { align: "center" });
+  doc.moveDown();
+  expenses.forEach((expense, index) => {
+    doc
+      .fontSize(12)
+      .text(
+        `${index + 1}. ${expense.date.toISOString().split("T")[0]} - ${
+          expense.category
+        } - $${expense.amount}`,
+        { indent: 20 }
+      );
+  });
+
+  doc.end();
+  res.setHeader(
+    "Content-Disposition",
+    "attachment; filename=expense_report.pdf"
+  );
+  res.setHeader("Content-Type", "application/pdf");
+};
+
+// Function to generate a CSV report
+const generateCSVReport = async (expenses, res) => {
+  const filePath = path.join(__dirname, "../reports/expense_report.csv");
+
+  const csvWriter = createObjectCsvWriter({
+    path: filePath,
+    header: [
+      { id: "date", title: "Date" },
+      { id: "category", title: "Category" },
+      { id: "amount", title: "Amount" },
+      { id: "description", title: "Description" },
+      { id: "paymentMethod", title: "Payment Method" },
+    ],
+  });
+
+  const csvData = expenses.map((expense) => ({
+    date: expense.date.toISOString().split("T")[0],
+    category: expense.category,
+    amount: expense.amount,
+    description: expense.description || "N/A",
+    paymentMethod: expense.paymentMethod,
+  }));
+
+  await csvWriter.writeRecords(csvData);
+
+  res.download(filePath, "expense_report.csv", (err) => {
+    if (err) {
+      console.error("Error sending CSV report:", err);
+      res.status(500).json({ error: "Failed to download CSV report." });
+    }
+  });
 };
 
 //
