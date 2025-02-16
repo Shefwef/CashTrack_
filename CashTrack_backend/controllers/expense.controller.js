@@ -3,6 +3,7 @@ import multer from "multer";
 import fs from "fs";
 import path from "path";
 import { uploadSingle } from "../config/multer.config.js";
+import { fileURLToPath } from "url";
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -167,14 +168,69 @@ export const deleteExpense = async (req, res) => {
   }
 };
 
-// View media file
-export const viewMedia = (req, res) => {
-  const { filePath } = req.params;
+// Fix __dirname in ES Modules
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-  const absolutePath = path.join(__dirname, "../uploads", filePath);
-  if (fs.existsSync(absolutePath)) {
+// View media file
+export const viewMedia = async (req, res) => {
+  try {
+    const { filePath } = req.params;
+    const absolutePath = path.join(__dirname, "../uploads", filePath);
+
+    if (!fs.existsSync(absolutePath)) {
+      return res.status(404).json({ error: "File not found!" });
+    }
+
     res.sendFile(absolutePath);
-  } else {
-    res.status(404).json({ error: "File not found!" });
+  } catch (error) {
+    console.error("Error retrieving media file:", error.message);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
+export const deleteMedia = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Find the expense record
+    const expense = await Expense.findById(id);
+    if (!expense) {
+      return res.status(404).json({ error: "Expense not found!" });
+    }
+
+    if (!expense.mediaFile) {
+      return res
+        .status(400)
+        .json({ error: "No media file attached to this expense!" });
+    }
+
+    // Delete the media file from storage
+    fs.unlink(expense.mediaFile, async (err) => {
+      if (err) {
+        console.error("Error deleting media file:", err);
+        return res.status(500).json({ error: "Failed to delete media file" });
+      }
+
+      // Remove media file path from expense record in DB
+      expense.mediaFile = null;
+      await expense.save();
+
+      res.status(200).json({ message: "Media file deleted successfully!" });
+    });
+  } catch (error) {
+    console.error("Error deleting media file:", error.message);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+//
+// export const viewMedia = (req, res) => {
+//   const { filePath } = req.params;
+
+//   const absolutePath = path.join(__dirname, "../uploads", filePath);
+//   if (fs.existsSync(absolutePath)) {
+//     res.sendFile(absolutePath);
+//   } else {
+//     res.status(404).json({ error: "File not found!" });
+//   }
+// };
