@@ -1,46 +1,15 @@
 import Expense from "../models/expense.model.js";
-import PDFDocument from "pdfkit";
-import multer from "multer";
 import fs from "fs";
 import path from "path";
-import { uploadSingle } from "../config/multer.config.js";
+import PDFDocument from "pdfkit";
 import { fileURLToPath } from "url";
+import { uploadSingle } from "../config/multer.config.js";
 import { createObjectCsvWriter } from "csv-writer";
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadPath = "./uploads";
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-    }
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  },
-});
-
-const upload = multer({
-  storage,
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(
-        new Error(
-          "Invalid file type. Only JPG, PNG, and PDF files are allowed!"
-        )
-      );
-    }
-  },
-}).single("mediaFile");
-
-// Fix __dirname in ES Modules
+// Fix __dirname for ES Modules
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Create a new expense
+// ✅ Create a new expense
 export const createExpense = async (req, res) => {
   try {
     console.log("Request Body:", req.body);
@@ -70,12 +39,12 @@ export const createExpense = async (req, res) => {
   }
 };
 
-// Read all expenses with filtering options
+// ✅ Read expenses (with filtering options)
 export const getExpenses = async (req, res) => {
   try {
     const { startDate, endDate, category } = req.query;
-
     const query = { userId: req.userID };
+
     if (startDate || endDate) {
       query.date = {};
       if (startDate) query.date.$gte = new Date(startDate);
@@ -83,7 +52,7 @@ export const getExpenses = async (req, res) => {
     }
     if (category) query.category = category;
 
-    const expenses = await Expense.find(query);
+    const expenses = await Expense.find(query).sort({ date: -1 });
     res.status(200).json(expenses);
   } catch (error) {
     console.error("Error fetching expenses:", error.message);
@@ -91,7 +60,7 @@ export const getExpenses = async (req, res) => {
   }
 };
 
-// Update an expense
+// ✅ Update an expense + media file replacement
 export const updateExpense = async (req, res) => {
   try {
     uploadSingle(req, res, async (err) => {
@@ -101,9 +70,8 @@ export const updateExpense = async (req, res) => {
 
       const { id } = req.params;
       const { date, category, amount, description, paymentMethod } = req.body;
-
-      // Find existing expense
       const existingExpense = await Expense.findById(id);
+
       if (!existingExpense) {
         return res.status(404).json({ error: "Expense not found!" });
       }
@@ -116,7 +84,7 @@ export const updateExpense = async (req, res) => {
         paymentMethod,
       };
 
-      // If a new media file is uploaded, delete the old one first
+      // Handle media file replacement
       if (req.file) {
         if (existingExpense.mediaFile) {
           fs.unlink(existingExpense.mediaFile, (err) => {
@@ -126,13 +94,11 @@ export const updateExpense = async (req, res) => {
         updatedFields.mediaFile = req.file.path;
       }
 
-      // Update the expense in DB
       const updatedExpense = await Expense.findByIdAndUpdate(
         id,
         updatedFields,
         { new: true }
       );
-
       res.status(200).json(updatedExpense);
     });
   } catch (error) {
@@ -141,39 +107,54 @@ export const updateExpense = async (req, res) => {
   }
 };
 
-// Delete an expense
+// ✅ Delete an expense + its media file
 export const deleteExpense = async (req, res) => {
   try {
     const { id } = req.params;
-
-    // Find the expense in DB
     const expense = await Expense.findById(id);
     if (!expense) {
       return res.status(404).json({ error: "Expense not found!" });
     }
 
-    // If an associated media file exists, delete it
     if (expense.mediaFile) {
       fs.unlink(expense.mediaFile, (err) => {
-        if (err) {
-          console.error("Error deleting media file:", err);
-        } else {
-          console.log("✅ Media file deleted successfully:", expense.mediaFile);
-        }
+        if (err) console.error("Error deleting media file:", err);
       });
     }
 
-    // Delete expense from DB
     await Expense.findByIdAndDelete(id);
-
     res.status(200).json({ message: "Expense deleted successfully!" });
   } catch (error) {
-    console.error("❌ Error deleting expense:", error.message);
+    console.error("Error deleting expense:", error.message);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
-// View media file
+// ✅ Delete only media file (keep expense record)
+export const deleteMedia = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const expense = await Expense.findById(id);
+
+    if (!expense) return res.status(404).json({ error: "Expense not found!" });
+    if (!expense.mediaFile)
+      return res.status(400).json({ error: "No media file attached!" });
+
+    fs.unlink(expense.mediaFile, async (err) => {
+      if (err)
+        return res.status(500).json({ error: "Failed to delete media file" });
+
+      expense.mediaFile = null;
+      await expense.save();
+      res.status(200).json({ message: "Media file deleted successfully!" });
+    });
+  } catch (error) {
+    console.error("Error deleting media file:", error.message);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// ✅ View Media File
 export const viewMedia = async (req, res) => {
   try {
     const { filePath } = req.params;
@@ -190,41 +171,7 @@ export const viewMedia = async (req, res) => {
   }
 };
 
-export const deleteMedia = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    // Find the expense record
-    const expense = await Expense.findById(id);
-    if (!expense) {
-      return res.status(404).json({ error: "Expense not found!" });
-    }
-
-    if (!expense.mediaFile) {
-      return res
-        .status(400)
-        .json({ error: "No media file attached to this expense!" });
-    }
-
-    // Delete the media file from storage
-    fs.unlink(expense.mediaFile, async (err) => {
-      if (err) {
-        console.error("Error deleting media file:", err);
-        return res.status(500).json({ error: "Failed to delete media file" });
-      }
-
-      // Remove media file path from expense record in DB
-      expense.mediaFile = null;
-      await expense.save();
-
-      res.status(200).json({ message: "Media file deleted successfully!" });
-    });
-  } catch (error) {
-    console.error("Error deleting media file:", error.message);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-};
-
+// ✅ Generate PDF & CSV reports
 export const generateReport = async (req, res) => {
   try {
     const { format, startDate, endDate, category } = req.query;
@@ -324,15 +271,3 @@ const generateCSVReport = async (expenses, res) => {
     }
   });
 };
-
-//
-// export const viewMedia = (req, res) => {
-//   const { filePath } = req.params;
-
-//   const absolutePath = path.join(__dirname, "../uploads", filePath);
-//   if (fs.existsSync(absolutePath)) {
-//     res.sendFile(absolutePath);
-//   } else {
-//     res.status(404).json({ error: "File not found!" });
-//   }
-// };

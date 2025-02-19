@@ -1,6 +1,7 @@
 import express from "express";
 import { uploadSingle } from "../config/multer.config.js";
 import authenticate from "../middleware/auth.middleware.js";
+import { validateExpense } from "../middleware/validation.middleware.js";
 import {
   createExpense,
   getExpenses,
@@ -13,13 +14,31 @@ import {
 
 const router = express.Router();
 
-// CRUD routes with file uploads
-router.post("/", authenticate, uploadSingle, createExpense); // Create an expense with media
-router.get("/", authenticate, getExpenses); // Get all expenses with filters
-router.patch("/:id", authenticate, updateExpense); // Update expense + replace media file
-router.delete("/:id", authenticate, deleteExpense); // Delete an expense
-router.get("/media/:filePath", viewMedia); // View media file
-router.delete("/media/:id", authenticate, deleteMedia); // Delete media file from an expense
-router.get("/report", authenticate, generateReport); // Generate a report
+// ✅ Create an expense (with media upload + validation)
+router.post("/", authenticate, uploadSingle, validateExpense, createExpense);
+
+// ✅ Get all expenses (with filters)
+router.get("/", authenticate, getExpenses);
+
+// ✅ Update an expense (replace media if new file is uploaded)
+router.patch(
+  "/:id",
+  authenticate,
+  uploadSingle,
+  validateExpense,
+  updateExpense
+);
+
+// ✅ Delete an expense
+router.delete("/:id", authenticate, deleteExpense);
+
+// ✅ View media file (returns the file itself)
+router.get("/media/:filePath", viewMedia);
+
+// ✅ Delete only the media file (keep the expense record)
+router.delete("/media/:id", authenticate, deleteMedia);
+
+// ✅ Generate report (PDF/CSV)
+router.get("/report", authenticate, generateReport);
 
 export default router;
