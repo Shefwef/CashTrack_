@@ -1,17 +1,15 @@
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
-import { Strategy as FacebookStrategy } from "passport-facebook";
+import { Strategy as GitHubStrategy } from "passport-github2";
 import User from "../models/user.model.js";
 import dotenv from "dotenv";
 
 dotenv.config();
 
-// Serialize User
 passport.serializeUser((user, done) => {
   done(null, user.id);
 });
 
-// Deserialize User
 passport.deserializeUser(async (id, done) => {
   try {
     const user = await User.findById(id);
@@ -21,7 +19,7 @@ passport.deserializeUser(async (id, done) => {
   }
 });
 
-// Google Strategy
+// Google OAuth Strategy
 passport.use(
   new GoogleStrategy(
     {
@@ -31,16 +29,17 @@ passport.use(
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
-        const existingUser = await User.findOne({ googleId: profile.id });
-        if (existingUser) return done(null, existingUser);
+        let user = await User.findOne({ googleId: profile.id });
 
-        const newUser = new User({
-          fullName: profile.displayName,
-          googleId: profile.id,
-          username: profile.emails[0].value,
-        });
-        await newUser.save();
-        done(null, newUser);
+        if (!user) {
+          user = await User.create({
+            fullName: profile.displayName,
+            username: profile.emails[0].value,
+            googleId: profile.id,
+          });
+        }
+
+        done(null, user);
       } catch (err) {
         done(err, null);
       }
@@ -48,29 +47,27 @@ passport.use(
   )
 );
 
-// Facebook Strategy
+// GitHub OAuth Strategy
 passport.use(
-  new FacebookStrategy(
+  new GitHubStrategy(
     {
-      clientID: process.env.FACEBOOK_APP_ID,
-      clientSecret: process.env.FACEBOOK_APP_SECRET,
-      callbackURL: "/api/auth/facebook/callback",
-      profileFields: ["id", "displayName", "emails"],
+      clientID: process.env.GITHUB_CLIENT_ID,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET,
+      callbackURL: "/api/auth/github/callback",
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
-        const existingUser = await User.findOne({ facebookId: profile.id });
-        if (existingUser) return done(null, existingUser);
+        let user = await User.findOne({ githubId: profile.id });
 
-        const newUser = new User({
-          fullName: profile.displayName,
-          facebookId: profile.id,
-          username: profile.emails
-            ? profile.emails[0].value
-            : `fb_${profile.id}`,
-        });
-        await newUser.save();
-        done(null, newUser);
+        if (!user) {
+          user = await User.create({
+            fullName: profile.displayName || profile.username,
+            username: profile.username,
+            githubId: profile.id,
+          });
+        }
+
+        done(null, user);
       } catch (err) {
         done(err, null);
       }
