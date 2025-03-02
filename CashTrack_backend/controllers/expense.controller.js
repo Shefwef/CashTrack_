@@ -60,18 +60,19 @@ export const getExpenses = async (req, res) => {
   }
 };
 
-// ✅ Update an expense + media file replacement
+// ✅ Update an expense with flexible field updates
 export const updateExpense = async (req, res) => {
   try {
     uploadSingle(req, res, async (err) => {
-      if (err && err.code !== "LIMIT_UNEXPECTED_FILE") {
+      if (err) {
+        console.error("Multer Error:", err);
         return res.status(400).json({ error: err.message });
       }
 
       const { id } = req.params;
       const { date, category, amount, description, paymentMethod } = req.body;
-      const existingExpense = await Expense.findById(id);
 
+      const existingExpense = await Expense.findById(id);
       if (!existingExpense) {
         return res.status(404).json({ error: "Expense not found!" });
       }
@@ -84,7 +85,13 @@ export const updateExpense = async (req, res) => {
         paymentMethod,
       };
 
-      // Handle media file replacement
+      // Remove Empty Fields
+      Object.keys(updatedFields).forEach((key) => {
+        if (!updatedFields[key]) {
+          delete updatedFields[key];
+        }
+      });
+
       if (req.file) {
         if (existingExpense.mediaFile) {
           fs.unlink(existingExpense.mediaFile, (err) => {
@@ -96,9 +103,10 @@ export const updateExpense = async (req, res) => {
 
       const updatedExpense = await Expense.findByIdAndUpdate(
         id,
-        updatedFields,
-        { new: true }
+        { $set: updatedFields },
+        { new: true, runValidators: true }
       );
+
       res.status(200).json(updatedExpense);
     });
   } catch (error) {
