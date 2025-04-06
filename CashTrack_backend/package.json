@@ -4,7 +4,7 @@
   "main": "app.js",
   "type": "module",
   "scripts": {
-    "start": "cd CashTrack_backend && node server.js"
+    "start": "node CashTrack_backend/server.js"
   },
   "keywords": [],
   "author": "",

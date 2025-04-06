@@ -10,10 +10,10 @@ import expenseRoutes from "./routes/expense.route.js";
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 80;
 
 // Middleware (Make sure express.json() does NOT interfere with multer)
-app.use(cors({ origin: ["http://localhost:5000"], credentials: true }));
+app.use(cors({ origin: ["http://localhost:80"], credentials: true }));
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true })); // Support form submissions
 app.use(express.json()); // JSON parsing AFTER file upload handling
