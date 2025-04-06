@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "cd CashTrack_backend && node server.js"
+    "start": "node CashTrack_backend/server.js"
   },
   "keywords": [],
   "author": "shefayat",
