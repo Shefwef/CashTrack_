@@ -2,6 +2,8 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import session from "express-session";
+import passport from "./config/passport.js";
 import connectToMongoDB from "./database/connectToMongodb.js";
 
 import authRoutes from "./routes/auth.route.js";
@@ -10,15 +12,26 @@ import expenseRoutes from "./routes/expense.route.js";
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 80;
 
-// Middleware (Make sure express.json() does NOT interfere with multer)
-app.use(cors({ origin: ["http://localhost:5000"], credentials: true }));
+// Session Middleware 🔥
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: true,
+  })
+);
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Middleware
+app.use(cors({ origin: ["http://localhost:8080"], credentials: true }));
 app.use(cookieParser());
-app.use(express.urlencoded({ extended: true })); // Support form submissions
-app.use(express.json()); // JSON parsing AFTER file upload handling
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
-// Connect to MongoDB
+// MongoDB Connection
 connectToMongoDB();
 
 // Routes
