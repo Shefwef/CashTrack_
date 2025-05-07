@@ -25,15 +25,18 @@ A RESTful API for tracking personal or business expenses, built with Node.js, Ex
    ```bash  
    git clone https://github.com/Shefwef/CashTrack_.git
 2. Install dependencies:
+   ```bash
    cd CashTrack_  
    npm install
-3. Set up environment variables:
+4. Set up environment variables:
    Create a .env file in the root directory.
    Copy the template from .env.example and fill in your credentials:
+   ```bash
    MONGODB_URI=your_mongodb_connection_string  
    JWT_SECRET=your_jwt_secret_key  
    PORT=3000  
-5. Start the server:
+6. Start the server:
+   ```bash
    npm start
-   The API will run on http://localhost:3000.
+The API will run on http://localhost:3000.
      
